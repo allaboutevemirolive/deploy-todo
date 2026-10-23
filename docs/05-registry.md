@@ -1,6 +1,6 @@
 # 05. The Container Registry (GHCR)
 
-> **Status:** ✅ Verified on 2026-10-23: the CI push to GHCR from a public repository, the tags, an anonymous pull from a real server, and cross-building for `linux/amd64`. ⚠️ Pushing by hand with your own token (steps 1 to 3) and the **private**-image path were not run; they follow GitHub's documentation. Treat them as a first run.
+> **Status:** ✅ Verified on 2026-10-23: the CI push to GHCR from a public repository, the tags, anonymous pull from a real server, cross-building for `linux/amd64`, and the **private-image path** on a real server (refused without a login, accepted with a read-only token, and that token cannot push). ⚠️ Not run: pushing by hand with your own token (steps 1 to 3), and a CI push to a package that is already **private**.
 
 ## Goal
 
@@ -131,13 +131,57 @@ You have two paths:
 | Who can pull | Anyone | Only holders of a token with `read:packages` |
 | Server needs `docker login` | No | Yes (chapter 06, step 8) |
 | Good for | Open-source demos, this walkthrough | Proprietary code |
-| Status | ✅ Verified: a real server pulled both images with an **empty** Docker config, so no login was involved | ⚠️ Not run |
+| Status | ✅ Verified: a real server pulled both images with an **empty** Docker config, so no login was involved | ✅ Verified, see "The private path, as verified" below |
 
 To switch a package: its GitHub page, **Package settings**, **Danger Zone**, **Change visibility**. Visibility is **per package**, so switch `backend` and `frontend` separately.
 
 Public is fine for this project: the images hold no secrets, because configuration is supplied at run time (chapter 01), and the frontend bundle is public by nature. For anything proprietary, go private.
 
-**What to expect on the private path** (not run by the author): without a login, `docker compose pull` fails with `denied` or `unauthorized`. After `docker login ghcr.io` with a `read:packages` token it should succeed.
+### The private path, as verified
+
+Both packages were switched to **Private** (GitHub asks you to type the package name to confirm; without that the change does not apply). Then, on 2026-10-23:
+
+**1. Anonymous requests are refused.** The same registry request that returned a tag list when the package was public:
+
+```
+{"errors":[{"code":"DENIED","message":"invalid token"}]}
+[HTTP 403]
+```
+
+**2. A pull with no login fails.** Run on the server with an empty Docker config:
+
+```
+Error response from daemon: error from registry: unauthorized
+```
+
+**3. A pull with a `read:packages` token works.** The token was created with only that scope. To check a token's scopes, ask GitHub (it prints a header, never the token):
+
+```bash
+curl -s -D - -o /dev/null -H "Authorization: Bearer $TOKEN" https://api.github.com/user | grep -i x-oauth-scopes
+```
+
+```
+x-oauth-scopes: read:packages
+```
+
+With a Docker login made from that token, `docker compose pull` succeeded:
+
+```
+ Image ghcr.io/allaboutevemirolive/deploy-todo/frontend:latest Pulled
+ Image ghcr.io/allaboutevemirolive/deploy-todo/backend:latest Pulled
+```
+
+**4. The read-only token cannot push.** This is the whole reason the server gets its own token. Trying to push an image with it:
+
+```
+error from registry: permission_denied: The token provided does not match expected scopes.
+```
+
+A server compromise therefore exposes your images for download, but cannot replace them. The registry afterwards still held only the expected tags, so nothing was written by the attempt.
+
+**5. Nothing else changed.** The running stack stayed up and healthy through all of this.
+
+> ⚠️ **Not tested: whether CI can still push to a package that is already private.** The workflow logs in with its automatic token, and GitHub's documentation says a package linked to the repository can be written by that repository's workflows. The author tested the pull side only. If your first CI run on private packages fails with `permission_denied: write_package`, check the package's **Manage Actions access** (step 6 below) before suspecting anything else.
 
 ### 6. Link the package to the repository
 

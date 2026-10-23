@@ -194,8 +194,12 @@ EDGE_NETWORK=edge
 
 Whether the server must log in depends on the package visibility ([chapter 05](05-registry.md), step 5).
 
-- **Public packages** (what a public repository's workflow produced when this was tested): **skip this step.** Verified: a real server pulled both images with an empty Docker config, so no credentials were used.
-- **Private packages:** the server needs a login. Create a **second** classic token at GitHub with **only `read:packages`**, then:
+- **Public packages** (what a public repository's workflow produced when this was first tested): **skip this step.** A real server pulled both images with an empty Docker config, so no credentials were used.
+- **Private packages:** the server needs a login. This path was verified on a real server on 2026-10-23.
+
+**a. Create a second token, read-only.** At GitHub, create a classic token with **only `read:packages`** (Settings, Developer settings, Personal access tokens, Tokens (classic)). Give it an expiry. Do not reuse the token you push with from your laptop.
+
+**b. Log in.** On a server used for this project alone, the simple form is enough:
 
 ```bash
 export GH_USER=allaboutevemirolive
@@ -204,13 +208,29 @@ echo "$CR_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
 unset CR_PAT
 ```
 
-Docker stores the credential in `~/.docker/config.json`, so later `docker compose pull` calls work without logging in again. (⚠️ The private path was not run by the author.)
+Docker stores the credential in `~/.docker/config.json`, so later `docker compose pull` calls need no login. Expect a warning that credentials are stored unencrypted. That is normal for a server login; keep the file private (`chmod 600`).
 
-**If the server hosts other projects that already use `docker login ghcr.io`** (as the test server did, for its own private images), that existing login is shared by every project on the machine. A pull of *your* images can therefore succeed even when they are private, which hides the problem until the day that login changes. To test what an anonymous pull really does, use an empty config directory for one command:
+**c. On a server shared with other projects, use a separate Docker config.** Docker keeps **one credential per registry** in a config folder, and `ghcr.io` may already hold the login your other projects depend on. A plain `docker login ghcr.io` would replace it. Point Docker at a folder of your own for this project instead:
+
+```bash
+mkdir -p ~/.docker-todo && chmod 700 ~/.docker-todo
+printf '%s' "$CR_PAT" | DOCKER_CONFIG=~/.docker-todo docker login ghcr.io -u "$GH_USER" --password-stdin
+DOCKER_CONFIG=~/.docker-todo docker compose pull
+```
+
+Verified on the test server (which already had a `ghcr.io` login): the login went into the separate folder (`drwx------` folder, `-rw-------` file), `docker compose pull` succeeded, and the modification time of the server's default `~/.docker/config.json` did **not** change. That is evidence the default login was left alone.
+
+You must then pass the variable on every command that pulls: `DOCKER_CONFIG=~/.docker-todo docker compose pull`. `deploy.sh` (chapter 08) does not set it, so it uses the **default** login.
+
+**d. What happened on the test server with the default login.** The server's existing default `ghcr.io` login belonged to an account that can read these packages, so `docker compose pull` with the default config also succeeded for the private images, and with an empty config it failed with `unauthorized`. So on that server `deploy.sh` would need nothing extra. The CI deploy run itself, with private packages, was **not** run (see the warning in chapter 05). Be aware of the other direction: if the default login on your server belongs to an account without access to these packages, `deploy.sh` stops at `docker compose pull` and leaves the running containers untouched, because the script stops at the first error.
+
+**e. A test that does not lie.** Because a shared default login can make a private pull succeed for the wrong reason, test what an anonymous pull does with an empty config for one command:
 
 ```bash
 DOCKER_CONFIG=$(mktemp -d) docker compose pull
 ```
+
+**f. Clean up after testing.** Revoke the token on GitHub and delete any temporary config folder (`rm -rf ~/.docker-todo` if you made one only for a test).
 
 ### 9. Start the application
 
