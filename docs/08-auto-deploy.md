@@ -36,6 +36,8 @@ restrict,command="/home/ubuntu/deploy-todo/deploy/deploy.sh" ssh-ed25519 AAAA...
 
 If this key leaks, an attacker can trigger a redeploy of this one project. They cannot read files, run commands or reach the other applications.
 
+**One limit to understand.** The key limits what *the key* can do, not what *the repository* can do. `deploy.sh` runs whatever `main` contains after the `git pull`, so anyone who can push to `main` can already run code on the server through this pipeline. Protect `main` (branch protection or a ruleset: require pull requests, restrict who can push) and treat write access to the repository as access to the server.
+
 ## The server-side script
 
 `deploy/deploy.sh`
@@ -233,7 +235,7 @@ Push a change to `backend/` or `frontend/`, or press **Run workflow**. Watch the
 
 ## Proving the new version is really running
 
-A green deploy does not prove the new code is live. Here is a real example from this project. A second push changed no application code, so the second build produced an image whose content was **identical** to the first. `docker compose up -d` noticed this and correctly left the containers alone. The run was green, nothing had changed, and nothing in the log said so.
+A green deploy does not prove the new code is live. Here is a real example from this project. A second push changed no application code, so the second build produced an image whose content was **identical** to the first. When the deploy script ran (here by hand through the restricted key, while testing), `docker compose up -d` correctly left the containers alone. The run succeeded, nothing had changed, and nothing in the log said so.
 
 To close the gap, every image is stamped with the commit it was built from:
 
@@ -261,9 +263,9 @@ So a green run now means: the images built, the server pulled them, the containe
 The workflow run, from the GitHub CLI:
 
 ```
-✓ build (backend)  in 17s
 ✓ build (frontend) in 17s
-✓ deploy in 18s
+✓ build (backend)  in 23s
+✓ deploy in 19s
   ✓ Configure SSH
   ✓ Deploy on the server
   ✓ Smoke test the live site
@@ -300,6 +302,8 @@ grep -v 'deploy-todo-ci' ~/.ssh/authorized_keys > ~/.ssh/authorized_keys.new && 
 gh secret delete SSH_PRIVATE_KEY
 gh secret delete SSH_KNOWN_HOSTS
 gh variable delete DEPLOY_HOST     # the deploy job is skipped again
+gh variable delete DEPLOY_USER
+gh variable delete SITE_URL
 ```
 
 ## Alternative: Watchtower (design B)

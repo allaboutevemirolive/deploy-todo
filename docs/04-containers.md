@@ -239,7 +239,7 @@ What matters here:
 
 - **Only Caddy has `ports:`.** The database, backend and frontend are reachable only from inside the Compose network. You can verify this later: port 3000 on your laptop does not answer.
 - **`healthcheck` plus `depends_on: condition: service_healthy`.** The backend starts only after Postgres reports it is accepting connections. Without this the backend races the database and crashes on startup.
-- **`restart: unless-stopped`.** Containers come back after a crash or a server reboot.
+- **`restart: unless-stopped`.** Containers come back after they crash (verified, [chapter 09](09-operations.md)) and, by design, after a server reboot (not tested by the author). They do **not** come back if you stopped them on purpose.
 - **`pgdata` is a named volume.** Containers are disposable; the volume is where the data lives. Deleting the container does not delete the data.
 - **`DATABASE_URL` is assembled from variables.** Nothing secret is written in this file, so it is safe to commit.
 - **`${TAG:-latest}`** means "use the `TAG` variable, or `latest` if it is not set". It is how you will roll back to an earlier build.
@@ -438,7 +438,7 @@ To delete the data too, add `-v`. To remove the development database from chapte
 | Symptom | Cause and fix |
 | :--- | :--- |
 | `port is already allocated` | Another program uses `8088` or `8443`. Change `HTTP_PORT` / `HTTPS_PORT` in `.env.local`. |
-| `unknown flag: --env-file` or `additional properties` errors | Your Docker Compose is probably too old. This guide was tested with v5.5; other v2 releases were not checked. Run `docker compose version`. |
+| Compose rejects a flag, or a property in the YAML files | Your Docker Compose is probably too old. This guide was tested with v5.5; other v2 releases were not checked. Run `docker compose version`. |
 | Backend keeps restarting | `docker compose logs backend`. Usually a wrong `DATABASE_URL` or a changed `POSTGRES_PASSWORD` (see below). |
 | You changed `POSTGRES_PASSWORD` and the backend now fails to log in | Postgres reads that variable **only when it first creates the data directory**. Changing it later does nothing. Either change it inside Postgres with `ALTER USER`, or (local only, destroys data) run `down -v` and start again. |
 | Browser shows the old frontend after a rebuild | You are looking at a cached page or an old container. Re-run `up --build -d` and hard-refresh. |

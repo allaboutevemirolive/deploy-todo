@@ -380,7 +380,7 @@ docker exec todo-dev-db psql -U todo -d todo -c 'SELECT id, title, done FROM tod
 
 ### The smoke test
 
-Typing curl commands by hand does not scale, and you will want to run the same checks against your laptop, a container and the live server. `scripts/smoke.sh` does exactly that. It takes one argument: the base URL.
+Typing curl commands by hand does not scale, and you will want to run the same checks against your laptop, a container and the live server. `scripts/smoke.sh` does exactly that. It takes the base URL and, optionally, the version (commit SHA) that must be running, which [chapter 08](08-auto-deploy.md) uses.
 
 ```bash
 #!/usr/bin/env bash

@@ -122,7 +122,7 @@ curl -s -H "Authorization: Bearer $T" https://ghcr.io/v2/allaboutevemirolive/dep
 {"name":"allaboutevemirolive/deploy-todo/backend","tags":["latest","81e48b0f70bc53fa8a52b084885b3a13432f72c6"]}
 ```
 
-A tag list means the package is public. (A private package should refuse the request instead. That response was not captured here.)
+A tag list means the package is public. A private package refuses the request instead (the real response is shown under "The private path, as verified" below).
 
 You have two paths:
 
@@ -200,7 +200,7 @@ Both Dockerfiles contain this line:
 LABEL org.opencontainers.image.source="https://github.com/allaboutevemirolive/deploy-todo"
 ```
 
-When GHCR sees that label it connects the package to the repository. Then the workflow in that repository is allowed to push to the package using its automatic token ([chapter 07](07-ci.md)). Without the link you would hit a `403 permission_denied: write_package` the first time CI tries to push an image that you first pushed by hand.
+When GHCR sees that label it connects the package to the repository. Then the workflow in that repository is allowed to push to the package using its automatic token ([chapter 07](07-ci.md)). Without the link you would expect a `403 permission_denied: write_package` the first time CI tries to push an image that you first pushed by hand. (That failure is described by GitHub's documentation. The author did **not** reproduce it: the images tested here were first pushed by CI.)
 
 If CI ever fails with that error, check it manually: package page, **Package settings**, **Manage Actions access**, and make sure the repository is listed with the **Write** role.
 

@@ -26,7 +26,7 @@ No output means the ports are free.
 
 ### 1. Create the server
 
-At your VPS provider, create a server with **Ubuntu 24.04 LTS** and at least 1 GB of RAM (measured on the test server: the three application containers together used about 70 MB, not counting Caddy). Add your SSH public key during creation if the provider offers it. Note the public IP address.
+At your VPS provider, create a server with **Ubuntu 24.04 LTS or newer** (the test server ran 26.04) and at least 1 GB of RAM (measured on the test server: the three application containers together used about 70 MB, not counting Caddy). Add your SSH public key during creation if the provider offers it. Note the public IP address.
 
 ### 2. Point the domain at it
 
@@ -249,7 +249,7 @@ On a server with a shared reverse proxy this starts `db`, `backend` and `fronten
 docker compose ps
 ```
 
-All four services should be `Up`, with `db` and `backend` showing `(healthy)`.
+All four services should be `Up`, with `db` and `backend` showing `(healthy)`. (Three, without `caddy`, on a server with a shared proxy.)
 
 Watch Caddy get the certificate:
 

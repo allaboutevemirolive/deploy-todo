@@ -81,7 +81,7 @@ These decisions shape the whole project. Each one is explained again where it ma
 **Accounts**
 
 - A GitHub account.
-- A VPS running Ubuntu 24.04 LTS with a public IP address. Any provider works. 1 GB of RAM is a comfortable minimum: the three application containers used about 70 MB in total on the test server (Caddy not counted).
+- A VPS running Ubuntu 24.04 LTS or newer (the test server ran 26.04) with a public IP address. Any provider works. 1 GB of RAM is a comfortable minimum: the three application containers used about 70 MB in total on the test server (Caddy not counted).
 - A domain name you control. This guide uses `todo.lazuar.dev`. Use your own.
 
 **Tools on your computer**
@@ -124,6 +124,8 @@ Honesty matters in a deployment guide, because the dangerous steps are the ones 
 | 08 Auto-deploy | ✅ Run on real GitHub Actions and a real VPS, with a restricted SSH key |
 | 09 Operations | ✅ Restart, crash recovery, backup, restore and rollback verified on the VPS. ⚠️ A server reboot was not tested |
 | 10 Shared server | ✅ Verified on a busy VPS that already had a reverse proxy |
+
+**About the sample output.** Output blocks are real, but identifiers in them (commit SHAs, timestamps, asset hashes) come from the author's runs and yours will differ. The repository history was rewritten once afterwards to remove a commit trailer, so some quoted SHAs no longer exist in it. Host names, container names and paths from the test server are changed in chapters 08 and 10 for privacy. The "Common problems" tables mix problems the author actually hit (they are listed again in the field notes at the end of [chapter 09](09-operations.md)) with well-known failures described from documentation and experience that were **not reproduced** here.
 
 Verified on 2026-10-23 with: macOS on Apple silicon, Node 24, Docker 29, Compose v5; a VPS running Ubuntu 26.04; GitHub Actions `ubuntu-latest`; Let's Encrypt for certificates; Cloudflare for DNS.
 

@@ -1,6 +1,6 @@
 # 10. Deploying Next to Other Apps (a Shared Reverse Proxy)
 
-> **Status:** ✅ Verified on 2026-10-23 on a real, busy VPS (Ubuntu 26.04, 17 other containers, a shared Caddy already serving six other domains). Everything in this chapter was done there, and the output shown is real.
+> **Status:** ✅ Verified on 2026-10-23 on a real, busy VPS (Ubuntu 26.04, 17 other containers, a shared Caddy already serving six other domains). Everything in this chapter was done there, and the output shown is real, except that host names, container names, network names and paths are changed for privacy (the structure is as observed).
 
 ## Goal
 
@@ -235,12 +235,12 @@ done
 ```
 
 ```
-site-a.example.com                 502
-site-b.example.com                 404
-site-c.example.com                   307
-site-d.example.com               200
-site-e.example.com                302
-site-f.example.com           308
+site-a.example.com             502
+site-b.example.com             404
+site-c.example.com             307
+site-d.example.com             200
+site-e.example.com             302
+site-f.example.com             308
 ```
 
 (One of these was already a `502` before we touched anything. A "before" picture is what stops you blaming yourself, or the wrong thing, later.)
@@ -286,7 +286,7 @@ docker logs --since 3m gateway-1 2>&1 | grep todo.lazuar.dev | grep -iE 'challen
 ... "certificate obtained successfully","identifier":"todo.lazuar.dev","issuer":"acme-v02.api.letsencrypt.org-directory"
 ```
 
-Two things worth noticing. Let's Encrypt checked from **five different places around the world** before issuing, which is why the DNS record must be correct everywhere, not just on your machine. And the whole thing took about **seven seconds** from reload to certificate.
+Two things worth noticing. Let's Encrypt checked from **five different network locations** (five different source addresses) before issuing, which is why the DNS record must be correct everywhere, not just on your machine. And the whole thing took about **seven seconds** from reload to certificate.
 
 ## Check it worked
 

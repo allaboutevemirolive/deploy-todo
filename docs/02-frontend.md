@@ -18,7 +18,7 @@ cd frontend
 npm install
 ```
 
-Vite generates a starter app with a logo, a counter and some demo styling. We do not want any of it. Remove the demo pieces:
+Vite generates a starter app with a logo, a counter and some demo styling. (Scaffolds change between releases. This guide used create-vite 9.3.1, which produced Vite 8.3. If yours differs, the repository's `frontend/` folder is the reference.) We do not want any of it. Remove the demo pieces:
 
 ```bash
 rm -rf src/assets src/App.css public/icons.svg README.md

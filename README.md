@@ -51,7 +51,7 @@ Open <http://localhost:8088>. Stop it with the same `docker compose ... down`.
 ```
 backend/            TypeScript API + Dockerfile
 frontend/           Vite + React app + Dockerfile + nginx.conf
-deploy/             docker-compose.yml, local override, Caddyfile, .env examples
+deploy/             docker-compose.yml, local and shared-proxy overrides, Caddyfile, deploy.sh, .env examples
 scripts/smoke.sh    Exercises the API through any URL
 docs/               The walkthrough
 .github/workflows/  CI/CD pipeline

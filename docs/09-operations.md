@@ -15,7 +15,7 @@ docker compose logs --tail=100 caddy
 docker stats --no-stream           # CPU and memory per container
 ```
 
-Logs are the first place to look for every problem. Backend logs are JSON lines, one per request, including the status code and response time.
+Logs are the first place to look for every problem. Backend logs are JSON lines, two per request (one when it arrives, one when it completes, with the status code and response time).
 
 ## Restart something
 
@@ -28,7 +28,7 @@ docker compose up -d               # make reality match the compose file
 
 ## Crash recovery, and a trap in how you test it
 
-`restart: unless-stopped` brings a container back after it **exits by itself**. It does **not** bring back a container that was **stopped on purpose**, and Docker counts `docker stop` and `docker kill` as "on purpose". This matters when you test, because the obvious test is wrong. Both cases were run on the real server:
+`restart: unless-stopped` brings a container back after it **exits by itself**. It does **not** bring back a container that was **stopped on purpose**, and Docker counts a manual `docker stop` or `docker kill` as "on purpose" (the kill was tested; the stop follows Docker's documentation). This matters when you test, because the obvious test is wrong. Both cases were run on the real server:
 
 ```bash
 # A crash the daemon did not cause: the process exits from inside.
@@ -86,7 +86,7 @@ nano .env          # change TAG=latest to TAG=abc1234  (use the full SHA CI push
 docker compose up -d
 ```
 
-The mechanism was verified locally with a made-up tag, and again on the real server with a **real tag from GHCR** (the full commit SHA that CI pushed): pinning pulled that exact image and restarted only `backend` and `frontend`. Setting `TAG=latest` and running `docker compose up -d` returned them to normal.
+The mechanism was verified locally with a made-up tag, and again on the real server with a **real tag from GHCR** (the full commit SHA that CI pushed): pinning pulled that exact image and restarted only `backend` and `frontend`. Setting `TAG=latest` and running `docker compose up -d` returned them to normal. The output below is from the local run with the made-up tag `abc1234`; the real-server run looked the same, with the full SHA as the tag.
 
 ```
 SERVICE    IMAGE                                                      STATUS
@@ -103,12 +103,13 @@ Note that Caddy and Postgres were not touched. Only the two services whose image
 1. **While pinned, new pushes do not reach the server.** CI will pull and run the pinned tag. This is intentional (a rollback should stay put) but easy to forget. After you fix the bug, set `TAG=latest` again.
 2. **A rollback only reverts code.** If the bad release changed the database, the data is not rolled back. That is the reason backups exist, below.
 
-Use the **full** commit SHA that CI pushed (the tag in the registry), not a shortened one. CI tags with `${{ github.sha }}`, which is the full 40-character value.
+Use the **full** commit SHA that CI pushed (the tag in the registry), not a shortened one. CI tags with `${{ github.sha }}`, which is the full 40-character value. `git log --oneline` prints short SHAs: turn one into the full value with `git rev-parse <short-sha>`.
 
 ## Back up the database
 
 ```bash
-docker compose exec -T db pg_dump -U todo todo | gzip > "backup-$(date +%F).sql.gz"
+mkdir -p ~/backups      # outside the repository, so a backup can never be committed by accident
+docker compose exec -T db pg_dump -U todo todo | gzip > ~/backups/todo-$(date +%F).sql.gz
 ```
 
 `-T` stops Compose from allocating a terminal, which would corrupt the piped output. This was run for real:
@@ -122,7 +123,7 @@ A backup that has never been restored is a hope, not a backup. **Test the restor
 
 ```bash
 docker compose exec -T db createdb -U todo todo_restore_test
-gunzip -c backup-2026-10-23.sql.gz | docker compose exec -T db psql -q -U todo -d todo_restore_test
+gunzip -c ~/backups/todo-2026-10-23.sql.gz | docker compose exec -T db psql -q -U todo -d todo_restore_test
 docker compose exec -T db psql -U todo -d todo_restore_test -c 'SELECT id, title FROM todos'
 docker compose exec -T db dropdb -U todo todo_restore_test
 ```
@@ -141,7 +142,7 @@ To restore into the real database after a disaster, first stop the backend, then
 **Where to keep backups.** A backup on the same server dies with the server. Copy them somewhere else (another machine, object storage, your laptop):
 
 ```bash
-scp deploy@203.0.113.10:'~/deploy-todo/deploy/backup-*.sql.gz' ./backups/
+scp deploy@203.0.113.10:'~/backups/todo-*.sql.gz' ./backups/
 ```
 
 A cron job on the server is the simplest way to take them regularly:
@@ -154,7 +155,7 @@ crontab -e
 0 3 * * * cd ~/deploy-todo/deploy && docker compose exec -T db pg_dump -U todo todo | gzip > ~/backups/todo-$(date +\%F).sql.gz
 ```
 
-(Create `~/backups` first. In crontab, `%` must be written as `\%`.) Delete old ones too, or the disk fills up.
+(`~/backups` must exist; the backup command above creates it. In crontab, `%` must be written as `\%`.) Delete old ones too, or the disk fills up.
 
 ## Change a secret
 
@@ -174,7 +175,7 @@ Use a hex password (`openssl rand -hex 24`), as explained in chapter 06.
 
 ## Keep the server healthy
 
-**Disk space.** Old images accumulate. CI's deploy step already runs `docker image prune -f`. To see usage:
+**Disk space.** Old images accumulate. `deploy.sh` ([chapter 08](08-auto-deploy.md)) already removes this project's old images, limited by label so other projects are not touched. To see usage:
 
 ```bash
 docker system df
@@ -189,7 +190,7 @@ sudo apt-get update && sudo apt-get upgrade -y
 sudo reboot            # when the kernel was updated
 ```
 
-All services have `restart: unless-stopped`, so everything returns after the reboot. For automatic security patches, install `unattended-upgrades`.
+All services have `restart: unless-stopped`, so they should return after the reboot, except any you stopped on purpose. (A reboot was not tested by the author.) For automatic security patches, install `unattended-upgrades`.
 
 **Upgrading Postgres.** Do not simply change `postgres:17-alpine` to a newer major version. The data folder is not compatible between major versions and Postgres will refuse to start. The safe route is: take a backup, start a new Postgres at the new version with an empty volume, restore the dump into it, and switch over. Minor updates within 17 are safe: pull the image again and recreate the container.
 
