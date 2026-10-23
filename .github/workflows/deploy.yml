@@ -82,18 +82,11 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
+      # The server's authorized_keys entry for this key forces it to run
+      # deploy/deploy.sh, whatever is typed here. The word after the host is
+      # only a label for readers. See docs/08-auto-deploy.md.
       - name: Deploy on the server
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DEPLOY_TARGET" 'bash -s' <<'REMOTE'
-          set -euo pipefail
-          cd ~/deploy-todo
-          git pull --ff-only
-          cd deploy
-          docker compose pull
-          docker compose up -d --remove-orphans
-          docker image prune -f
-          docker compose ps
-          REMOTE
+        run: ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_TARGET" deploy
 
       - name: Smoke test the live site
         run: ./scripts/smoke.sh "${{ vars.SITE_URL }}"

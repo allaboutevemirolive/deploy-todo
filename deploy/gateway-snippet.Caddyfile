@@ -1,0 +1,15 @@
+# Add this site block to the shared Caddy that owns ports 80 and 443.
+# Replace the host name with yours. It is the same routing as deploy/Caddyfile,
+# but it addresses the aliases from docker-compose.shared-gateway.yml.
+
+todo.lazuar.dev {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy todo-backend:3000
+	}
+
+	handle {
+		reverse_proxy todo-frontend:8080
+	}
+}

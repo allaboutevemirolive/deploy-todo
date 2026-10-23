@@ -1,0 +1,32 @@
+# Use this when ANOTHER reverse proxy (for example a shared Caddy) already owns
+# ports 80 and 443 on the server. Our own Caddy is switched off, and the
+# frontend and backend are attached to the network the shared proxy uses.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.shared-gateway.yml up -d
+#
+# The shared proxy then needs one site block that points at the aliases below.
+# See gateway-snippet.Caddyfile.
+#
+# The aliases are deliberately specific ("todo-backend", not "backend"): a
+# network shared with other applications has ONE namespace for container names,
+# and a generic name could collide with someone else's service. The database
+# stays on this project's private network only.
+
+services:
+  caddy:
+    profiles: ["standalone"] # not started unless you ask for it
+  backend:
+    networks:
+      default: {}
+      edge:
+        aliases: [todo-backend]
+  frontend:
+    networks:
+      default: {}
+      edge:
+        aliases: [todo-frontend]
+
+networks:
+  edge:
+    name: ${EDGE_NETWORK:-lazuar-edge}
+    external: true
