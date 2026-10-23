@@ -1,0 +1,13 @@
+# Local override: build the images from source instead of pulling them.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml \
+#     --env-file .env.local up --build
+#
+# The image names stay the same, so what you test locally is exactly what
+# CI later builds and pushes.
+
+services:
+  backend:
+    build: ../backend
+  frontend:
+    build: ../frontend
