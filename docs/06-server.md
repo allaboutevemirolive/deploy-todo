@@ -1,6 +1,6 @@
 # 06. The Server
 
-> **Status:** ⚠️ Not verified here. This chapter needs a real VPS and a real domain, which were not available while writing. The commands follow the official Ubuntu, Docker and Caddy documentation. The pieces that can be tested without a server (the compose file, the Caddyfile, the images, the password format) were tested in chapter 04. Treat your first run as the test.
+> **Status:** ✅ Verified on 2026-10-23 on a real VPS (Ubuntu 26.04) that already hosted other applications: the DNS record in Cloudflare, cloning the repository, the environment file, an anonymous image pull, a Let's Encrypt certificate and the live smoke test. ⚠️ Steps 3 to 5 (the unprivileged user, SSH hardening, the firewall, installing Docker) were **not** run, because that server was already set up and was not ours to change. They follow the official Ubuntu and Docker documentation. Because that server already had a reverse proxy, its certificate came from that proxy (see [chapter 10](10-shared-server.md)). Starting this project's own Caddy on ports 80 and 443 was tested on a laptop only.
 
 ## Goal
 
@@ -14,6 +14,14 @@ The values used below are examples. Replace them:
 | `todo.lazuar.dev` | Your domain name |
 | `deploy` | The unprivileged Linux user that will run the app |
 
+**Two kinds of server.** On a clean server, this chapter is the whole story and this project's own Caddy takes ports 80 and 443. If the server **already runs other web applications behind a reverse proxy**, our Caddy cannot start (the ports are taken) and could not get a certificate anyway. In that case follow this chapter for DNS and files, then use [chapter 10](10-shared-server.md) in place of starting our own Caddy. Check which case you are in:
+
+```bash
+ss -tlnp | grep -E ':(80|443) '
+```
+
+No output means the ports are free.
+
 ## Steps
 
 ### 1. Create the server
@@ -22,25 +30,33 @@ At your VPS provider, create a server with **Ubuntu 24.04 LTS** and at least 1 G
 
 ### 2. Point the domain at it
 
-In your DNS provider (for example Cloudflare) add one record:
+Add one DNS record. In Cloudflare: sign in, choose the zone (`lazuar.dev`), then **DNS**, **Records**, **Add record**:
 
-| Type | Name | Content | Proxy |
-| :--- | :--- | :--- | :--- |
-| A | `todo` | `203.0.113.10` | **DNS only** (grey cloud) |
+| Field | Value |
+| :--- | :--- |
+| Type | `A` |
+| Name | `todo` (the result is `todo.lazuar.dev`) |
+| IPv4 address | `203.0.113.10` (your server's address) |
+| Proxy status | **DNS only** (grey cloud) |
+| TTL | Auto |
 
-Leave the proxy **off** for now. Caddy proves to Let's Encrypt that you own the domain by answering a request on port 80. Getting that to work *through* Cloudflare's proxy is possible, but it is an extra thing that can go wrong on your first attempt.
+Then **Save**. Leave the proxy **off** for now. Caddy proves to Let's Encrypt that you own the domain by answering a request on port 80. Doing that *through* Cloudflare's proxy is possible, but it is one more thing that can go wrong on a first attempt.
 
-Check that the name resolves (this can take a few minutes):
+**Check from the outside, with a public resolver:**
 
 ```bash
-dig +short todo.lazuar.dev
+dig +short @1.1.1.1 todo.lazuar.dev
+dig +short @8.8.8.8 todo.lazuar.dev
 ```
 
 ```
 203.0.113.10
+203.0.113.10
 ```
 
-Do not continue until it prints your server's IP. Everything after this depends on it.
+Do not continue until both print your server's address. Everything after this depends on it.
+
+> **A trap that really happened: your own machine may say "not found" for a while.** If you (or any program) looked the name up *before* creating the record, your computer's resolver remembers the "does not exist" answer (negative caching) until its time limit passes, often many minutes. Meanwhile `dig +short todo.lazuar.dev` prints nothing and `curl` says `Could not resolve host`, even though the public resolvers above already answer correctly and the site works for everyone else. This was observed here: the certificate was issued and the site was live while the author's laptop still could not resolve the name. **Test with `@1.1.1.1`, not with your default resolver, and be patient.** Testing from another place, such as the server itself, also works. To force a laptop to ask again you can flush its DNS cache (on macOS: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`), or just wait.
 
 ### 3. Log in and create an unprivileged user
 
@@ -167,11 +183,19 @@ TAG=latest
 
 `chmod 600` means only your user can read the file. It contains the database password and must never be committed (the repository's `.gitignore` already excludes it).
 
-### 8. Let the server pull private images
+**On a server that already has a reverse proxy**, add two more lines to this file. They make every `docker compose` command in this folder (and `deploy.sh`) use the shared-proxy variant, and name the network that proxy uses. Chapter 10 explains how to find the network name:
 
-If you made the packages public in chapter 05 you can skip this step.
+```
+COMPOSE_FILE=docker-compose.yml:docker-compose.shared-gateway.yml
+EDGE_NETWORK=edge
+```
 
-Create a **second** classic token at GitHub with **only `read:packages`**, then:
+### 8. Registry login (only for private images)
+
+Whether the server must log in depends on the package visibility ([chapter 05](05-registry.md), step 5).
+
+- **Public packages** (what a public repository's workflow produced when this was tested): **skip this step.** Verified: a real server pulled both images with an empty Docker config, so no credentials were used.
+- **Private packages:** the server needs a login. Create a **second** classic token at GitHub with **only `read:packages`**, then:
 
 ```bash
 export GH_USER=allaboutevemirolive
@@ -180,7 +204,13 @@ echo "$CR_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
 unset CR_PAT
 ```
 
-Docker stores the credential in `~/.docker/config.json`, so later `docker compose pull` calls work without logging in again.
+Docker stores the credential in `~/.docker/config.json`, so later `docker compose pull` calls work without logging in again. (⚠️ The private path was not run by the author.)
+
+**If the server hosts other projects that already use `docker login ghcr.io`** (as the test server did, for its own private images), that existing login is shared by every project on the machine. A pull of *your* images can therefore succeed even when they are private, which hides the problem until the day that login changes. To test what an anonymous pull really does, use an empty config directory for one command:
+
+```bash
+DOCKER_CONFIG=$(mktemp -d) docker compose pull
+```
 
 ### 9. Start the application
 
@@ -190,6 +220,8 @@ This assumes the images already exist in GHCR (chapter 05 by hand or chapter 07 
 docker compose pull
 docker compose up -d
 ```
+
+On a server with a shared reverse proxy this starts `db`, `backend` and `frontend` only (see chapter 10). Verified on the test server: three containers, `db` and `backend` healthy.
 
 ## Check it worked
 
@@ -258,6 +290,8 @@ On the very first request for your domain Caddy contacts Let's Encrypt, proves c
 | `exec format error` | The images were built for the wrong CPU. See chapter 05. |
 | Backend log: `password authentication failed` | `POSTGRES_PASSWORD` was changed after the first start. See the note in chapter 04. |
 | Locked out of SSH | You closed your only session before testing the new login. Use the provider's web console to repair `/etc/ssh/sshd_config`. |
+| `dig` and `curl` on your laptop say the name does not exist, but `dig @1.1.1.1` answers | Negative DNS caching on your machine (see the trap in step 2). Wait, or flush the cache. The site is not broken. |
+| `address already in use` on port 80 or 443 | Another proxy owns the ports. Use the shared-proxy variant ([chapter 10](10-shared-server.md)). |
 
 ## Recap
 

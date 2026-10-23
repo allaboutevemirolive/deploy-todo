@@ -45,6 +45,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# Which commit this image was built from. CI passes it; "dev" when built by hand.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 # The official node image ships a non-root user called "node".
 USER node
 EXPOSE 3000
@@ -60,6 +63,7 @@ Line by line:
 - `npm ci --omit=dev` installs only production dependencies. No TypeScript, no tsx.
 - `USER node` stops the process running as root. If someone finds a flaw in the app, they land in an unprivileged account instead of an all-powerful one.
 - `LABEL org.opencontainers.image.source=...` tells GitHub which repository this image belongs to. GHCR uses it to link the package to the repo, which is what later allows the repo's own workflow to push to it ([chapter 05](05-registry.md)).
+- `ARG APP_VERSION` and `ENV APP_VERSION` record which commit built the image. CI passes the commit SHA; a local build says `dev` or `local`. The health endpoint reports it, so after a deploy you can check which version is really running ([chapter 08](08-auto-deploy.md)). The frontend image stores it as a label you can read with `docker inspect`.
 
 `backend/.dockerignore` lists what must **not** be sent to the builder: `node_modules`, `dist`, `.env`, `.git`. Without it, your local `node_modules` (built for macOS) would be copied into a Linux image, and a `.env` file with secrets could end up inside it.
 
@@ -88,6 +92,9 @@ FROM nginxinc/nginx-unprivileged:stable-alpine
 LABEL org.opencontainers.image.source="https://github.com/allaboutevemirolive/deploy-todo"
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+# Which commit this image was built from. Visible with `docker inspect`.
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.revision=$APP_VERSION
 EXPOSE 8080
 ```
 
@@ -253,12 +260,18 @@ What matters here:
 
 services:
   backend:
-    build: ../backend
+    build:
+      context: ../backend
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
   frontend:
-    build: ../frontend
+    build:
+      context: ../frontend
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
 ```
 
-When you pass two `-f` files, Compose merges them. The second one adds a `build:` instruction to the services. Because `image:` names are unchanged, **the image you build locally has exactly the name the production file expects**, so what you test on your laptop is what the pipeline will later build and ship.
+When you pass two `-f` files, Compose merges them. The second one adds a `build:` instruction to the services. Because `image:` names are unchanged, **the image you build locally has exactly the name the production file expects**, so what you test on your laptop is what the pipeline will later build and ship. The override also passes `APP_VERSION` (default `local`), so `APP_VERSION=abc123 docker compose ... up --build` stamps a local build and `./scripts/smoke.sh http://localhost:8088 abc123` can check it. Verified: with a wrong expected version the smoke test fails with `wrong version running`.
 
 ### 6. The environment files
 

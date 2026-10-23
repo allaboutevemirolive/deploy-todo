@@ -5,7 +5,8 @@
 #   docker compose -f docker-compose.yml -f docker-compose.shared-gateway.yml up -d
 #
 # The shared proxy then needs one site block that points at the aliases below.
-# See gateway-snippet.Caddyfile.
+# See gateway-snippet.Caddyfile. If the shared proxy's network is not called
+# "edge", set EDGE_NETWORK in .env.
 #
 # The aliases are deliberately specific ("todo-backend", not "backend"): a
 # network shared with other applications has ONE namespace for container names,
@@ -28,5 +29,5 @@ services:
 
 networks:
   edge:
-    name: ${EDGE_NETWORK:-lazuar-edge}
+    name: ${EDGE_NETWORK:-edge}
     external: true

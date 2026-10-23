@@ -1,6 +1,6 @@
 # 05. The Container Registry (GHCR)
 
-> **Status:** ✅ Cross-building for `linux/amd64` verified on 2026-10-23. ⚠️ Pushing to GHCR was **not** run (it needs your real token and would publish to your account). Follow the steps once and compare with the expected output.
+> **Status:** ✅ Verified on 2026-10-23: the CI push to GHCR from a public repository, the tags, an anonymous pull from a real server, and cross-building for `linux/amd64`. ⚠️ Pushing by hand with your own token (steps 1 to 3) and the **private**-image path were not run; they follow GitHub's documentation. Treat them as a first run.
 
 ## Goal
 
@@ -96,7 +96,7 @@ docker buildx build --platform linux/amd64 --push \
 
 On GitHub open your profile, then **Packages**. You should see `deploy-todo/backend` and `deploy-todo/frontend`, each with the tags you pushed.
 
-Or from the command line, ask the registry directly:
+Or from the command line, ask the registry directly (verified for the CI-pushed images, which showed `Platform: linux/amd64`):
 
 ```bash
 docker buildx imagetools inspect $IMG/backend:latest
@@ -106,12 +106,38 @@ Look for `Platform: linux/amd64` in the output.
 
 ### 5. Understand visibility
 
-A new package starts **private**. A private image can only be pulled by someone who logs in with a token that has `read:packages`. You have two choices:
+Who may pull an image depends on the package's **visibility**.
 
-| Choice | Meaning |
-| :--- | :--- |
-| **Keep it private** (recommended) | The server logs in with a read-only token. This is how most real projects work, and it is what chapter 06 teaches. |
-| **Make it public** | Package settings, **Change visibility**. No login needed to pull. Fine for open-source demos. Anyone can then download your image. |
+**What was observed.** After the workflow in a **public** repository pushed the two images for the first time, an anonymous request to the registry succeeded: the packages were public from the start. Do not assume this for your own account. Check, as shown next. GitHub's defaults for packages created another way, for example pushed by hand from a laptop, may differ.
+
+Check visibility without logging in:
+
+```bash
+T=$(curl -s "https://ghcr.io/token?scope=repository:allaboutevemirolive/deploy-todo/backend:pull" \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+curl -s -H "Authorization: Bearer $T" https://ghcr.io/v2/allaboutevemirolive/deploy-todo/backend/tags/list
+```
+
+```
+{"name":"allaboutevemirolive/deploy-todo/backend","tags":["latest","81e48b0f70bc53fa8a52b084885b3a13432f72c6"]}
+```
+
+A tag list means the package is public. (A private package should refuse the request instead. That response was not captured here.)
+
+You have two paths:
+
+| | **Public** | **Private** |
+| :--- | :--- | :--- |
+| Who can pull | Anyone | Only holders of a token with `read:packages` |
+| Server needs `docker login` | No | Yes (chapter 06, step 8) |
+| Good for | Open-source demos, this walkthrough | Proprietary code |
+| Status | ✅ Verified: a real server pulled both images with an **empty** Docker config, so no login was involved | ⚠️ Not run |
+
+To switch a package: its GitHub page, **Package settings**, **Danger Zone**, **Change visibility**. Visibility is **per package**, so switch `backend` and `frontend` separately.
+
+Public is fine for this project: the images hold no secrets, because configuration is supplied at run time (chapter 01), and the frontend bundle is public by nature. For anything proprietary, go private.
+
+**What to expect on the private path** (not run by the author): without a login, `docker compose pull` fails with `denied` or `unauthorized`. After `docker login ghcr.io` with a `read:packages` token it should succeed.
 
 ### 6. Link the package to the repository
 

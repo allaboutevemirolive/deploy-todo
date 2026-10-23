@@ -110,19 +110,24 @@ Every chapter follows the same shape so you always know where you are:
 Honesty matters in a deployment guide, because the dangerous steps are the ones nobody ran. Each chapter starts with a status line.
 
 - ✅ **Verified** means the author ran it and the output shown is real.
-- ⚠️ **Not verified here** means it needs a real server, a real domain or real GitHub infrastructure that was not available while writing. The instructions follow the official documentation, but treat the first run as a test and expect to adjust.
+- ⚠️ **Not verified** means the author did not run it. The instructions follow the official documentation, but treat your first run as a test and expect to adjust.
 
 | Chapter | Status |
 | :--- | :--- |
 | 01 Backend | ✅ Verified |
-| 02 Frontend | ✅ Verified |
+| 02 Frontend | ✅ Verified in a real browser |
 | 03 Wiring | ✅ Verified |
-| 04 Containers | ✅ Verified |
-| 05 Registry | ✅ Cross-building verified, ⚠️ pushing to GHCR not verified |
-| 06 Server | ⚠️ Not verified here (needs a VPS) |
-| 07 CI | ✅ Workflow linted, ⚠️ not run on GitHub |
-| 08 Auto-deploy | ⚠️ Not verified here |
-| 09 Operations | ✅ Backup, restore and rollback verified locally |
+| 04 Containers | ✅ Verified, including a clean-copy rebuild with fresh volumes |
+| 05 Registry | ✅ CI push to GHCR and anonymous pull on the server verified. ⚠️ Pushing by hand with your own token, and private images, not yet run |
+| 06 Server | ✅ Verified on a real shared VPS: DNS, certificate, app. ⚠️ Fresh-server steps (new user, SSH hardening, firewall, Docker install, our own Caddy on 80/443) not run, because that server was already set up |
+| 07 CI | ✅ Run on real GitHub Actions |
+| 08 Auto-deploy | ✅ Run on real GitHub Actions and a real VPS, with a restricted SSH key |
+| 09 Operations | ✅ Restart, crash recovery, backup, restore and rollback verified on the VPS. ⚠️ A server reboot was not tested |
+| 10 Shared server | ✅ Verified on a busy VPS that already had a reverse proxy |
+
+Verified on 2026-10-23 with: macOS on Apple silicon, Node 24, Docker 29, Compose v5; a VPS running Ubuntu 26.04; GitHub Actions `ubuntu-latest`; Let's Encrypt for certificates; Cloudflare for DNS.
+
+**Which path is yours?** Chapter 06 assumes a clean server where this project's own Caddy takes ports 80 and 443. If your server already runs other web applications behind a reverse proxy, do chapter 06 for DNS and files, then follow [chapter 10](10-shared-server.md) instead of starting our own Caddy.
 
 ## Repository layout
 
@@ -130,7 +135,7 @@ Honesty matters in a deployment guide, because the dangerous steps are the ones 
 deploy-todo/
 ├── backend/            TypeScript API (Fastify + Postgres) and its Dockerfile
 ├── frontend/           Vite + React app and its Dockerfile + nginx config
-├── deploy/             What runs on the server: compose files, Caddyfile, env examples
+├── deploy/             What runs on the server: compose files, Caddyfile, deploy.sh, env examples
 ├── scripts/smoke.sh    One script that exercises the whole API through any URL
 ├── docs/               This walkthrough
 └── .github/workflows/  The CI/CD pipeline

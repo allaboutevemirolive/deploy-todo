@@ -25,10 +25,11 @@ Start at [docs/00-introduction.md](docs/00-introduction.md) and follow the chapt
 | 05 | [The Registry](docs/05-registry.md) | Images in GHCR, and the Mac-vs-server CPU trap |
 | 06 | [The Server](docs/06-server.md) | A hardened Ubuntu VPS serving HTTPS |
 | 07 | [Continuous Integration](docs/07-ci.md) | GitHub builds and pushes images for you |
-| 08 | [Automatic Deployment](docs/08-auto-deploy.md) | Push to `main`, and the server updates itself |
+| 08 | [Automatic Deployment](docs/08-auto-deploy.md) | Push to `main`; the server updates itself, and the pipeline proves which commit is live |
 | 09 | [Operations](docs/09-operations.md) | Logs, rollback, backups, secrets, troubleshooting |
+| 10 | [Next to other apps](docs/10-shared-server.md) | Deploying behind a shared reverse proxy on a busy server |
 
-Chapter 00 explains which chapters were fully tested and which need a real server to confirm.
+Chapter 00 lists exactly what was tested, where, and what was not. Every deployment chapter was run on a real VPS and real GitHub Actions on 2026-10-23, except the steps marked ⚠️.
 
 ## Run it on your laptop in two minutes
 

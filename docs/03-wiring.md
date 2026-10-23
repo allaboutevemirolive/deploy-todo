@@ -80,7 +80,7 @@ First, prove the proxy works without a browser. This is the same smoke test as i
 
 ```
 ==> GET /api/health
-{"status":"ok"}
+{"status":"ok","version":"dev"}
 ...
 All smoke checks passed against http://localhost:5173
 ```

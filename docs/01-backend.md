@@ -8,7 +8,7 @@ A TypeScript API that stores todos in Postgres and answers these requests:
 
 | Method | Path | What it does |
 | :--- | :--- | :--- |
-| GET | `/api/health` | Says "ok" if the API and the database both work |
+| GET | `/api/health` | Says "ok" if the API and the database both work, and which version is running |
 | GET | `/api/todos` | Lists all todos |
 | POST | `/api/todos` | Creates a todo |
 | PATCH | `/api/todos/:id` | Changes `done` and/or `title` |
@@ -98,6 +98,9 @@ export const config = {
   // containers. (127.0.0.1 would only be reachable from inside itself.)
   host: process.env.HOST ?? "0.0.0.0",
   databaseUrl: required("DATABASE_URL"),
+  // Which commit this build came from. CI bakes it into the image, so the
+  // health endpoint can prove which version is actually running.
+  version: process.env.APP_VERSION ?? "dev",
 };
 ```
 
@@ -140,6 +143,7 @@ export async function migrate(pool: pg.Pool): Promise<void> {
 ```ts
 import Fastify, { type FastifyInstance } from "fastify";
 import type pg from "pg";
+import { config } from "./config.js";
 
 interface Todo {
   id: number;
@@ -162,7 +166,7 @@ export function buildApp(pool: pg.Pool): FastifyInstance {
   app.get("/api/health", async (_req, reply) => {
     try {
       await pool.query("SELECT 1");
-      return { status: "ok" };
+      return { status: "ok", version: config.version };
     } catch {
       return reply.code(503).send({ status: "database unavailable" });
     }
@@ -246,7 +250,7 @@ Points to notice:
 - **`buildApp(pool)` takes the database pool as an argument.** It does not create one itself. This is what would let you test the app with a fake or a throwaway database.
 - **Queries use `$1`, `$2` placeholders.** User input is never pasted into SQL text. That is what prevents SQL injection.
 - **Each route has a JSON schema.** Fastify rejects bad input with a `400` before your handler runs. You will see the exact error message below.
-- **`/api/health` queries the database.** A health check that only says "the process is running" can be green while the app is useless. This one is green only if the whole chain works. Docker will use it to decide whether the container is healthy.
+- **`/api/health` queries the database.** A health check that only says "the process is running" can be green while the app is useless. This one is green only if the whole chain works. Docker will use it to decide whether the container is healthy. It also reports `version`, the commit the program was built from (`dev` when you run it by hand). That field is how [chapter 08](08-auto-deploy.md) proves the right version is live after a deploy.
 - **`PATCH` uses `COALESCE`.** `COALESCE($2, done)` means "use the new value if one was sent, otherwise keep the current one", so you can send just `done` or just `title`.
 
 ### 6. Start the server
@@ -320,7 +324,7 @@ curl -i localhost:3000/api/health
 ```
 HTTP/1.1 200 OK
 ...
-{"status":"ok"}
+{"status":"ok","version":"dev"}
 ```
 
 Create two todos and list them:
@@ -384,16 +388,26 @@ Typing curl commands by hand does not scale, and you will want to run the same c
 #   ./scripts/smoke.sh http://localhost:3000        (backend directly)
 #   ./scripts/smoke.sh http://localhost:8088        (through Caddy, local compose)
 #   ./scripts/smoke.sh https://todo.lazuar.dev      (production)
+#
+# Optional second argument: the version (commit SHA) that must be running.
+#   ./scripts/smoke.sh https://todo.lazuar.dev "$(git rev-parse HEAD)"
 set -euo pipefail
 
-BASE="${1:?usage: smoke.sh <base-url>}"
+BASE="${1:?usage: smoke.sh <base-url> [expected-version]}"
 BASE="${BASE%/}"
+EXPECT_VERSION="${2:-}"
 
 step() { printf '\n==> %s\n' "$1"; }
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
 step "GET /api/health"
-curl -fsS "$BASE/api/health" | tee /dev/stderr | grep -q '"status":"ok"' || fail "health check"
+HEALTH=$(curl -fsS "$BASE/api/health") || fail "health request failed"
+echo "$HEALTH"
+printf '%s' "$HEALTH" | grep -q '"status":"ok"' || fail "health check"
+if [ -n "$EXPECT_VERSION" ]; then
+  printf '%s' "$HEALTH" | grep -q "\"version\":\"$EXPECT_VERSION\"" \
+    || fail "wrong version running: expected $EXPECT_VERSION"
+fi
 
 step "POST /api/todos"
 CREATED=$(curl -fsS -X POST "$BASE/api/todos" \
@@ -428,7 +442,7 @@ printf '\nAll smoke checks passed against %s\n' "$BASE"
 
 ```
 ==> GET /api/health
-{"status":"ok"}
+{"status":"ok","version":"dev"}
 ==> POST /api/todos
 {"id":1,"title":"smoke test","done":false,"created_at":"2026-10-23T07:31:51.976Z"}
 ...

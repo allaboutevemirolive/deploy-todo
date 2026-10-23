@@ -1,6 +1,6 @@
 # 09. Operating the Deployment
 
-> **Status:** ✅ Backup, restore and rollback were run on 2026-10-23 against the local stack, which uses the same Compose file as the server. The other sections are standard Docker practice and were not run on a real server.
+> **Status:** ✅ Verified on 2026-10-23 on the real VPS: restart, crash recovery, backup, restore and rollback with a real GHCR tag. ⚠️ A server **reboot** was not tested, because that server hosts other production sites. The remaining sections are standard Docker practice and were not run.
 
 Shipping is half the job. This chapter is the one you come back to at 2 a.m.
 
@@ -26,6 +26,47 @@ docker compose up -d               # make reality match the compose file
 
 `restart` re-runs the same container. `up -d` recreates containers if their image or configuration changed.
 
+## Crash recovery, and a trap in how you test it
+
+`restart: unless-stopped` brings a container back after it **exits by itself**. It does **not** bring back a container that was **stopped on purpose**, and Docker counts `docker stop` and `docker kill` as "on purpose". This matters when you test, because the obvious test is wrong. Both cases were run on the real server:
+
+```bash
+# A crash the daemon did not cause: the process exits from inside.
+docker exec deploy-todo-backend-1 kill -TERM 1
+sleep 8
+docker inspect deploy-todo-backend-1 --format '{{.State.Status}} restarts={{.RestartCount}}'
+```
+
+```
+running restarts=1
+```
+
+Health returned `200` again, and the log shows the graceful shutdown line from chapter 01: `SIGTERM received, shutting down`.
+
+```bash
+# Now the manual stop.
+docker kill deploy-todo-backend-1; sleep 6
+docker inspect deploy-todo-backend-1 --format '{{.State.Status}}'
+```
+
+```
+exited
+```
+
+It stayed down: Docker took the kill as your wish. `docker compose up -d` brings it back (`running (healthy)`). The same applies to a service you stopped by hand before a reboot: it will not return on its own.
+
+## Which version is running?
+
+```bash
+curl -s https://todo.lazuar.dev/api/health
+```
+
+```
+{"status":"ok","version":"136bb338f46d96f02f00d190b8268fa3298123b8"}
+```
+
+Compare it with `git rev-parse HEAD`. After a rollback it shows the **older** commit that built the pinned image, which is the quickest way to confirm the rollback took effect.
+
 ## Deploy a new version by hand
 
 The same three commands CI runs:
@@ -45,7 +86,7 @@ nano .env          # change TAG=latest to TAG=abc1234  (use the full SHA CI push
 docker compose up -d
 ```
 
-The mechanism was verified locally: with `TAG=abc1234` the stack restarted on the pinned images.
+The mechanism was verified locally with a made-up tag, and again on the real server with a **real tag from GHCR** (the full commit SHA that CI pushed): pinning pulled that exact image and restarted only `backend` and `frontend`. Setting `TAG=latest` and running `docker compose up -d` returned them to normal.
 
 ```
 SERVICE    IMAGE                                                      STATUS
@@ -191,3 +232,18 @@ Right now you find out something broke when a user tells you. The cheapest fix: 
 - **GitHub Environments.** Put the deploy job in a protected `production` environment so a person must approve each deployment.
 - **Monitoring and logs.** Ship container logs somewhere searchable instead of reading them with `docker compose logs`.
 - **Migrations.** Replace the one-line `CREATE TABLE IF NOT EXISTS` with a real migration tool as soon as the schema needs to change.
+
+## Field notes: what went wrong while testing this walkthrough
+
+These are real surprises from the deployment tests, kept because you will meet them too.
+
+| What happened | Why | Where it is explained |
+| :--- | :--- | :--- |
+| Assumed new GHCR packages start private. They were public | A package pushed by a public repo's workflow was public. The assumption was never checked | [05](05-registry.md) step 5 |
+| First crash test left the container down | `docker kill` counts as a manual stop, so `unless-stopped` obeys it | This chapter, "Crash recovery" |
+| Laptop could not resolve the new name for a long time | Negative DNS caching. Public resolvers had the record already | [06](06-server.md) step 2 |
+| A green deploy changed nothing | The new build was byte-identical, so Compose left the containers alone. Nothing in the log said so | [08](08-auto-deploy.md), "Proving the new version is really running" |
+| A safe-looking script stopped after `diff` | `diff` exits 1 when files differ, and `set -e` treats that as failure | [10](10-shared-server.md) step 5a |
+| `git pull` on the server refused to run | A file copied by hand with `scp` also existed in the new commit | [08](08-auto-deploy.md) step 7 |
+| The "restricted key" test seemed to fail | The test silently used a different key from the SSH agent | [08](08-auto-deploy.md) step 4 |
+| First CI deploy would have failed | The forced command runs the script before the `git pull` that would bring it | [08](08-auto-deploy.md) step 7 |
