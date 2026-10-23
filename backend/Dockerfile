@@ -22,6 +22,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# Which commit this image was built from. CI passes it; "dev" when built by hand.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 # The official node image ships a non-root user called "node".
 USER node
 EXPOSE 3000

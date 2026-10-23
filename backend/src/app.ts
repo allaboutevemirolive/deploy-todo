@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import type pg from "pg";
+import { config } from "./config.js";
 
 interface Todo {
   id: number;
@@ -22,7 +23,7 @@ export function buildApp(pool: pg.Pool): FastifyInstance {
   app.get("/api/health", async (_req, reply) => {
     try {
       await pool.query("SELECT 1");
-      return { status: "ok" };
+      return { status: "ok", version: config.version };
     } catch {
       return reply.code(503).send({ status: "database unavailable" });
     }

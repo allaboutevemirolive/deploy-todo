@@ -3,16 +3,26 @@
 #   ./scripts/smoke.sh http://localhost:3000        (backend directly)
 #   ./scripts/smoke.sh http://localhost:8088        (through Caddy, local compose)
 #   ./scripts/smoke.sh https://todo.lazuar.dev      (production)
+#
+# Optional second argument: the version (commit SHA) that must be running.
+#   ./scripts/smoke.sh https://todo.lazuar.dev "$(git rev-parse HEAD)"
 set -euo pipefail
 
-BASE="${1:?usage: smoke.sh <base-url>}"
+BASE="${1:?usage: smoke.sh <base-url> [expected-version]}"
 BASE="${BASE%/}"
+EXPECT_VERSION="${2:-}"
 
 step() { printf '\n==> %s\n' "$1"; }
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
 step "GET /api/health"
-curl -fsS "$BASE/api/health" | tee /dev/stderr | grep -q '"status":"ok"' || fail "health check"
+HEALTH=$(curl -fsS "$BASE/api/health") || fail "health request failed"
+echo "$HEALTH"
+printf '%s' "$HEALTH" | grep -q '"status":"ok"' || fail "health check"
+if [ -n "$EXPECT_VERSION" ]; then
+  printf '%s' "$HEALTH" | grep -q "\"version\":\"$EXPECT_VERSION\"" \
+    || fail "wrong version running: expected $EXPECT_VERSION"
+fi
 
 step "POST /api/todos"
 CREATED=$(curl -fsS -X POST "$BASE/api/todos" \

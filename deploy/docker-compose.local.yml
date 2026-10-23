@@ -8,6 +8,12 @@
 
 services:
   backend:
-    build: ../backend
+    build:
+      context: ../backend
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
   frontend:
-    build: ../frontend
+    build:
+      context: ../frontend
+      args:
+        APP_VERSION: ${APP_VERSION:-local}

@@ -16,4 +16,7 @@ export const config = {
   // containers. (127.0.0.1 would only be reachable from inside itself.)
   host: process.env.HOST ?? "0.0.0.0",
   databaseUrl: required("DATABASE_URL"),
+  // Which commit this build came from. CI bakes it into the image, so the
+  // health endpoint can prove which version is actually running.
+  version: process.env.APP_VERSION ?? "dev",
 };
