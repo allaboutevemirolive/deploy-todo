@@ -118,9 +118,9 @@ Honesty matters in a deployment guide, because the dangerous steps are the ones 
 | 02 Frontend | ✅ Verified in a real browser |
 | 03 Wiring | ✅ Verified |
 | 04 Containers | ✅ Verified, including a clean-copy rebuild with fresh volumes |
-| 05 Registry | ✅ CI push to GHCR, anonymous pull, and the private-image path (refused without login, accepted with a read-only token, token cannot push) verified. ⚠️ Pushing by hand with your own token, and a CI push to an already-private package, not run |
+| 05 Registry | ✅ CI push to GHCR, anonymous pull, and the private-image path (refused without login, accepted with a read-only token, token cannot push) verified, plus a full CI run with private packages. ⚠️ Pushing by hand with your own token not run |
 | 06 Server | ✅ Verified on a real shared VPS: DNS, certificate, app. ⚠️ Fresh-server steps (new user, SSH hardening, firewall, Docker install, our own Caddy on 80/443) not run, because that server was already set up |
-| 07 CI | ✅ Run on real GitHub Actions |
+| 07 CI | ✅ Run on real GitHub Actions, with public and with private packages |
 | 08 Auto-deploy | ✅ Run on real GitHub Actions and a real VPS, with a restricted SSH key |
 | 09 Operations | ✅ Restart, crash recovery, backup, restore and rollback verified on the VPS. ⚠️ A server reboot was not tested |
 | 10 Shared server | ✅ Verified on a busy VPS that already had a reverse proxy |

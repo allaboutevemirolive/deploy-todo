@@ -1,6 +1,6 @@
 # 05. The Container Registry (GHCR)
 
-> **Status:** ✅ Verified on 2026-10-23: the CI push to GHCR from a public repository, the tags, anonymous pull from a real server, cross-building for `linux/amd64`, and the **private-image path** on a real server (refused without a login, accepted with a read-only token, and that token cannot push). ⚠️ Not run: pushing by hand with your own token (steps 1 to 3), and a CI push to a package that is already **private**.
+> **Status:** ✅ Verified on 2026-10-23: the CI push to GHCR from a public repository, the tags, anonymous pull from a real server, cross-building for `linux/amd64`, and the **private-image path** on a real server (refused without a login, accepted with a read-only token, and that token cannot push), plus a full CI run with both packages private. ⚠️ Not run: pushing by hand with your own token (steps 1 to 3).
 
 ## Goal
 
@@ -181,7 +181,16 @@ A server compromise therefore exposes your images for download, but cannot repla
 
 **5. Nothing else changed.** The running stack stayed up and healthy through all of this.
 
-> ⚠️ **Not tested: whether CI can still push to a package that is already private.** The workflow logs in with its automatic token, and GitHub's documentation says a package linked to the repository can be written by that repository's workflows. The author tested the pull side only. If your first CI run on private packages fails with `permission_denied: write_package`, check the package's **Manage Actions access** (step 6 below) before suspecting anything else.
+**6. CI still works when the packages are private.** With both packages private, the workflow was run again (**Run workflow** button). The build jobs logged in with the automatic `GITHUB_TOKEN`, pushed both images, and the deploy job pulled them on the server. The result, from `gh run view`:
+
+```
+success
+  build (backend):  success  (20s)
+  build (frontend): success  (27s)
+  deploy:           success  (19s)
+```
+
+The live site then reported the commit that had just been built (`/api/health` returned that commit's SHA in `version`), which proves the new images really reached the server. After the run an anonymous request to the registry was still refused (HTTP 403), so the packages stayed private throughout. This works because the packages are linked to the repository (step 6 below, and the `LABEL` in the Dockerfiles). If a run on your account fails with `permission_denied: write_package`, check **Manage Actions access** on the package first.
 
 ### 6. Link the package to the repository
 

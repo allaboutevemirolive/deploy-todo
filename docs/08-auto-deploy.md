@@ -269,7 +269,7 @@ The workflow run, from the GitHub CLI:
   ✓ Smoke test the live site
 ```
 
-And the live version equals the commit you pushed (the `git rev-parse HEAD` on your laptop). On the server:
+The same pipeline was also run with both packages **private** and succeeded in the same way (see chapter 05). And the live version equals the commit you pushed (the `git rev-parse HEAD` on your laptop). On the server:
 
 ```bash
 cd ~/deploy-todo/deploy && docker compose ps
