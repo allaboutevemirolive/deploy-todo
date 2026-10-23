@@ -290,7 +290,7 @@ cd ~/deploy-todo/deploy && docker compose ps
 
 ## Taking CI access away
 
-Everything this chapter created can be removed in two minutes:
+Everything this chapter created can be removed in two minutes. (⚠️ These removal commands were **not run**, because the test setup was kept in place. Read each one before running it.)
 
 ```bash
 # on the server: delete the one line, or restore the backup

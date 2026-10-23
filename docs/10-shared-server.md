@@ -159,7 +159,7 @@ docker exec gateway-1 wget -qO- http://todo-frontend:8080/ | head -c 120
 ```
 
 ```
-{"status":"ok"}
+{"status":"ok","version":"bcaae46ad53be146b60dc46b4e69cda71a92822e"}
 <!doctype html>
 <html lang="en">
   <head>
@@ -268,7 +268,7 @@ Valid configuration
 running, started 2026-10-09T08:58:07Z
 ```
 
-`reload` swaps the configuration without dropping existing connections. The `started` timestamp is from nine days earlier: **the proxy did not restart.** If validation had failed you would restore the backup (`cat $LIVE.before-deploy-todo > $LIVE`) and stop.
+`reload` swaps the configuration without dropping existing connections. The `started` timestamp is from two weeks earlier: **the proxy did not restart.** If validation had failed you would restore the backup (`cat $LIVE.before-deploy-todo > $LIVE`) and stop.
 
 **f. Compare with the "before" picture.** Run the loop from step c again. Every status code was identical. Nothing else was affected.
 
@@ -307,7 +307,7 @@ notAfter=Jan 21 06:59:55 2027 GMT
 
 ## Undoing everything
 
-Cleanly, in the opposite order:
+Cleanly, in the opposite order. (⚠️ These undo steps were **not run**: the test deployment was kept. They use the same commands that were run in the other direction, but check each one.)
 
 ```bash
 cd ~/deploy-todo/deploy && docker compose down            # keep the data volume; add -v to delete it

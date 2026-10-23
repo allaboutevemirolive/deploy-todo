@@ -33,7 +33,7 @@ Chapter 00 lists exactly what was tested, where, and what was not. Every deploym
 
 ## Run it on your laptop in two minutes
 
-You need Docker (with Compose v2.24 or newer).
+You need Docker with Compose v2 or newer (tested with Compose v5.5).
 
 ```bash
 cd deploy

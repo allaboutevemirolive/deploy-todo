@@ -438,7 +438,7 @@ To delete the data too, add `-v`. To remove the development database from chapte
 | Symptom | Cause and fix |
 | :--- | :--- |
 | `port is already allocated` | Another program uses `8088` or `8443`. Change `HTTP_PORT` / `HTTPS_PORT` in `.env.local`. |
-| `unknown flag: --env-file` or `additional properties` errors | Your Compose is too old. `docker compose version` should be v2.24 or newer. |
+| `unknown flag: --env-file` or `additional properties` errors | Your Docker Compose is probably too old. This guide was tested with v5.5; other v2 releases were not checked. Run `docker compose version`. |
 | Backend keeps restarting | `docker compose logs backend`. Usually a wrong `DATABASE_URL` or a changed `POSTGRES_PASSWORD` (see below). |
 | You changed `POSTGRES_PASSWORD` and the backend now fails to log in | Postgres reads that variable **only when it first creates the data directory**. Changing it later does nothing. Either change it inside Postgres with `ALTER USER`, or (local only, destroys data) run `down -v` and start again. |
 | Browser shows the old frontend after a rebuild | You are looking at a cached page or an old container. Re-run `up --build -d` and hard-refresh. |

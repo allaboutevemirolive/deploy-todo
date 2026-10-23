@@ -81,7 +81,7 @@ These decisions shape the whole project. Each one is explained again where it ma
 **Accounts**
 
 - A GitHub account.
-- A VPS running Ubuntu 24.04 LTS with a public IP address. Any provider works. 1 GB of RAM is enough for this project.
+- A VPS running Ubuntu 24.04 LTS with a public IP address. Any provider works. 1 GB of RAM is a comfortable minimum: the three application containers used about 70 MB in total on the test server (Caddy not counted).
 - A domain name you control. This guide uses `todo.lazuar.dev`. Use your own.
 
 **Tools on your computer**
@@ -91,7 +91,7 @@ These decisions shape the whole project. Each one is explained again where it ma
 | Node.js | 24 | `node -v` |
 | npm | 11 | `npm -v` |
 | Docker (Desktop, OrbStack or Engine) | 29 | `docker version` |
-| Docker Compose | v2.24 or newer | `docker compose version` |
+| Docker Compose | v2 (tested with v5.5) | `docker compose version` |
 | git | any recent | `git --version` |
 | curl | any | `curl --version` |
 

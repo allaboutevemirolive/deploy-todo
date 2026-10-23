@@ -26,7 +26,7 @@ No output means the ports are free.
 
 ### 1. Create the server
 
-At your VPS provider, create a server with **Ubuntu 24.04 LTS** and at least 1 GB of RAM. Add your SSH public key during creation if the provider offers it. Note the public IP address.
+At your VPS provider, create a server with **Ubuntu 24.04 LTS** and at least 1 GB of RAM (measured on the test server: the three application containers together used about 70 MB, not counting Caddy). Add your SSH public key during creation if the provider offers it. Note the public IP address.
 
 ### 2. Point the domain at it
 
@@ -248,7 +248,7 @@ curl -i https://todo.lazuar.dev/api/health
 ```
 HTTP/2 200
 ...
-{"status":"ok"}
+{"status":"ok","version":"bcaae46ad53be146b60dc46b4e69cda71a92822e"}
 ```
 
 Then run the whole smoke test against the live site, and open the address in a browser:
